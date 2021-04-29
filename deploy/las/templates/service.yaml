@@ -1,0 +1,17 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "las.fullname" . }}
+  labels:
+    {{- include "las.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: api
+      protocol: TCP
+      name: api
+  selector:
+    {{- include "las.selectorLabels" . | nindent 4 }}
+{{- end }}

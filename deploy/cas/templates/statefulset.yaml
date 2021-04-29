@@ -1,0 +1,96 @@
+{{- if not .Values.useSGXDevPlugin }}
+{{- required "A valid '.Values.useSGXDevPlugin' is required: \"enabled\"|\"scone\"|\"azure\"|\"disabled\"" .value }}
+{{- else if and (ne .Values.useSGXDevPlugin "enabled") (ne .Values.useSGXDevPlugin "scone") (ne .Values.useSGXDevPlugin "azure") (ne .Values.useSGXDevPlugin "disabled") }}
+{{- required "A valid '.Values.useSGXDevPlugin' is required: \"enabled\"|\"scone\"|\"azure\"|\"disabled\"" .value }}
+{{- end }}
+
+{{- if and (eq .Values.useSGXDevPlugin "azure") (not .Values.sgxEpcMem) }}
+{{- required "Specify '.Values.sgxEpcMem' when using Azure SGX Device Plugin" .value }}
+{{- end }}
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "cas.fullname" . }}
+  labels:
+    {{- include "cas.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cas.selectorLabels" . | nindent 6 }}
+  serviceName: {{ template "cas.fullname" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "cas.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      volumes:
+        {{- if .Values.extraVolumes }}
+          {{- toYaml .Values.extraVolumes | nindent 8 }}
+        {{- end }}
+        {{- if eq .Values.useSGXDevPlugin "disabled" }}
+        - hostPath:
+            path: /dev/isgx
+          name: dev-isgx
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+          {{- if .Values.securityContext }}
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- end }}
+          {{- if or (eq .Values.useSGXDevPlugin "scone") (eq .Values.useSGXDevPlugin "enabled")}}
+            capabilities:
+              add: ["SYS_RAWIO"]
+          {{- else }}
+            privileged: true
+          {{- end}}
+          image: "{{ .Values.image }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: client
+              containerPort: 8081
+              protocol: TCP
+            - name: enclave
+              containerPort: 18765
+              protocol: TCP
+          {{- if or (.Values.resources) (or (or (eq .Values.useSGXDevPlugin "scone") (eq .Values.useSGXDevPlugin "enabled")) (eq .Values.useSGXDevPlugin "azure")) }}
+          resources:
+          {{- if .Values.resources }}
+          {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+          {{- if or (eq .Values.useSGXDevPlugin "scone") (eq .Values.useSGXDevPlugin "enabled") }}
+            limits:
+              sgx.k8s.io/sgx: 1
+          {{- else if eq .Values.useSGXDevPlugin "azure" }}
+            limits:
+              kubernetes.azure.com/sgx_epc_mem_in_MiB: {{ .Values.sgxEpcMem }}
+          {{- end }}
+          {{- end }}
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.extraVolumeMounts }}
+            {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if eq .Values.useSGXDevPlugin "disabled" }}
+            - name: dev-isgx
+              mountPath: /dev/isgx
+            {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cas.fullname" . }}
+  labels:
+    {{- include "cas.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if and (eq .Values.service.type "LoadBalancer") (not (empty .Values.service.loadBalancerIP)) }}
+  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.clientPort }}
+      targetPort: client
+      protocol: TCP
+      name: client
+      {{- if and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePorts.clientPort)) }}
+      nodePort: {{ .Values.service.nodePorts.clientPort }}
+      {{- end }}
+    - port: {{ .Values.service.enclavePort }}
+      targetPort: enclave
+      protocol: TCP
+      name: enclave
+      {{- if and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePorts.enclavePort)) }}
+      nodePort: {{ .Values.service.nodePorts.enclavePort }}
+      {{- end }}
+  selector:
+    {{- include "cas.selectorLabels" . | nindent 4 }}

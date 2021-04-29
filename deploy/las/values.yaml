@@ -1,0 +1,45 @@
+# Default values for las.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image: "registry.scontain.com:5050/clenimar/azure-integration-demo:las-scone5.2.1"
+imagePullPolicy: Always
+
+imagePullSecrets: 
+  - name: sconeapps
+
+# Use an external AESM instead of starting one.
+# NOTE: This feature is not yet released.
+externalAesmd:
+  enabled: false
+  path: /var/run/aesmd
+
+service:
+  enabled: false
+
+  type: ClusterIP
+  port: 18766
+  hostPort: true
+
+securityContext: {}
+
+resources: {}
+
+nodeSelector: {}
+#  beta.kubernetes.io/instance-type: Standard_DC2s_v2
+
+tolerations: []
+
+extraVolumes: []
+#  - name: dev-isgx
+#    hostPath:
+#      path: /dev/isgx
+
+extraVolumeMounts: []
+#  - name: dev-isgx
+#    path: /dev/isgx
+
+useSGXDevPlugin: "scone"
+# Amount of EPC memory to request to Azure, in MiB.
+# Used only when `useSGXDevPlugin=azure`.
+sgxEpcMem: "16"
