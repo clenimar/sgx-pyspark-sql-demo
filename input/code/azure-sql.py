@@ -18,10 +18,17 @@ if __name__ == "__main__":
         .appName("Azure SQL application") \
         .getOrCreate()
 
+    # Read JDBC connection string from environment.
+    # Stop if environment variable is not set.
+    jdbc_conn_string = os.environ.get("JDBC_CONNECTION_STRING")
+    if jdbc_conn_string is None:
+        print("ERROR: JDBC_CONNECTION_STRING not set!")
+        exit(1)
+
     # Loading Dataframe from Azure SQL
     AzureSQL_DF = spark.read \
         .format("jdbc") \
-        .option("url", "jdbc:sqlserver:...") \
+        .option("url", jdbc_conn_string) \
         .option("dbtable", "dbo.Employees") \
         .load()
 

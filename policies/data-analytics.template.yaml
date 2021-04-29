@@ -1,0 +1,59 @@
+name: $CAS_NAMESPACE/$AZURE_SQL_SESSION_NAME
+version: "0.3"
+
+security:
+  attestation:
+    # Use Microsoft Azure Attestation as the attestation provider.
+    # Since MAA also supports attestation policies, the attestation flow has to be
+    # allowed by BOTH policies (i.e., MAA and SCONE). If you use one of the shared
+    # MAA instances provided by Azure, they apply an "empty" policy, so you only have
+    # to comply with this one.
+    # NOTE: In some Azure regions, MAA providers use short RSA signing keys (1024 bits).
+    # Such key length is discouraged, and you must explicitly allow it here by adding
+    # `min_rsa_signing_key_size: 1024`. If omitted, we enforce the default minimum RSA
+    # key length of 2048 bits.
+    mode: maa
+    url: $MAA_PROVIDER
+    # We explicitly tolerate:
+    # 1) Enclaves in debug mode; and
+    # 2) Having the TCB state enforced by MAA, not by us, since MAA does not include
+    #    any TCB state in its token. This is required for `mode: maa`.
+    tolerate: [debug-mode, maa-managed-tcb]
+
+secrets:
+  # Secrets of `kind: aad-token` represent Azure AD tokens that are retrieved
+  # dynamically. Such secrets can be injected into the enclave's environment or
+  # filesystem, as well as used by this session in flows that require authentication
+  # to Azure services (e.g., retrieving a key from Azure Key Vault).
+  - name: AAD_TOKEN
+    kind: aad-token
+    tenant_id: $AZURE_TENANT_ID
+    client_id: $AZURE_CLIENT_ID
+    # NOTE: One could also use `private_key` instead of `application_secret`, for when
+    # the application credential is a certificate.
+    application_secret: $AZURE_CLIENT_SECRET
+
+  - name: JDBC_CONNECTION_STRING
+    kind: ascii
+    # Import the content of this secret from an Azure Key Vault. Importing secrets from
+    # AKV requires at least one secret of `kind: aad-token`, so the session can authenticate
+    # to Azure. If the session defines only one secret of `kind: aad-token`, it is used by
+    # default to authenticate, and you can omit the field `import_akv.token`.
+    import_akv:
+      vault: $AKV_VAULT
+      secret_name: $AKV_SECRET_NAME
+      token: $$SCONE::AAD_TOKEN$$
+
+services:
+  - name: azure-sql
+    command: python3 /fspf/encrypted-files/azure-sql.py
+    mrenclaves: ["b00f5a76774e3c9428e0566581ac95f8a2463c9711e44acacdc90e99adc5f8c8"]
+    environment:
+      # NOTE: We inject the contents of the secret `JDBC_CONNECTION_STRING` (retrieved from AKV)
+      # into the enclave's environment after attestation is successful.
+      JDBC_CONNECTION_STRING: $$SCONE::JDBC_CONNECTION_STRING$$
+    pwd: /
+    fspf: /fspf/encrypted-files/volume.fspf
+    fspf_key: $SCONE_FSPF_KEY
+    fspf_tag: $SCONE_FSPF_TAG
+
