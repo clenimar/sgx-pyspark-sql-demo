@@ -1,0 +1,12 @@
+spark.kubernetes.authenticate.driver.serviceAccountName spark-sa
+spark.kubernetes.container.image.pullPolicy Always
+spark.driver.memory 4G
+spark.driver.extraClassPath /fspf/input/libraries/mssql-jdbc-9.2.0.jre8-shaded.jar
+spark.kubernetes.driver.container.image $IMAGE
+spark.kubernetes.driver.podTemplateFile /fspf/kubernetes/sgx-pod-template.yaml
+spark.kubernetes.driverEnv.JDBC_CONNECTION_STRING $JDBC_CONNECTION_STRING
+spark.kubernetes.driverEnv.SCONE_FORK 1
+spark.executor.instances 1
+spark.executor.memory 4G
+spark.kubernetes.executor.container.image $IMAGE
+spark.kubernetes.executor.podTemplateFile /fspf/kubernetes/sgx-pod-template.yaml

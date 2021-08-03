@@ -127,3 +127,40 @@ vi encrypted-files/azure-sql.py
 # Testing the memory attack
 ./memory-dump.sh
 ```
+
+### Scenario 3: Running on a Kubernetes cluster (plain code)
+
+```bash
+# Build and push image.
+export IMAGE=clenimar/test:pyspark-scone
+docker build . -t $IMAGE
+docker push $IMAGE
+
+# We're use the same image as the client, so we mount the Kubernetes credentials
+# into the container (~/.kube).
+docker run -it --rm --entrypoint bash -v $HOME/.kube:/root/.kube -e IMAGE=$IMAGE -e SCONE_MODE=sim $IMAGE
+
+# If not already, setup RBAC for Spark in Kubernetes.
+kubectl apply -f /fspf/kubernetes/rbac.yaml
+
+# Inside of the container, gather the master IP.
+export MASTER_ADDRESS=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+
+# Export the JDBC connection string.
+export JDBC_CONNECTION_STRING="jdbc:sqlserver:..."
+
+# Generate the properties file from the template (replace $IMAGE, $JDBC_CONNECTION_STRING).
+# We use the same image for driver and executor, but this is configurable.
+# If you use different images, their Python versions must match.
+# If you use images held in private registries, add
+# `spark.kubernetes.container.image.pullSecrets $SECRET_NAME` to properties file.
+envsubst < /fspf/properties.template > /fspf/properties
+
+# Submit job to the cluster.
+spark-submit --master k8s://$MASTER_ADDRESS --deploy-mode cluster --name azure-sql --properties-file /fspf/properties --jars local:///fspf/input/libraries/mssql-jdbc-9.2.0.jre8-shaded.jar local:///fspf/input/code/azure-sql.py
+
+# The driver pod will spawn the executors, and clean up after they're finished.
+# Once the job is finished, the driver pod will be kept in Completed state.
+# Executor logs will be displayed in the driver pod.
+```
+

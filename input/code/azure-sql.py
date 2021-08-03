@@ -18,10 +18,17 @@ if __name__ == "__main__":
         .appName("Azure SQL application") \
         .getOrCreate()
 
+    # Get JDBC connection string from the environment
+    # (JDBC_CONNECTION_STRING).
+    jdbc_conn_string = os.environ.get("JDBC_CONNECTION_STRING", "")
+
+    if not jdbc_conn_string:
+        raise Exception("Missing JDBC connection string. Please export JDBC_CONNECTION_STRING")
+
     # Loading Dataframe from Azure SQL
     AzureSQL_DF = spark.read \
         .format("jdbc") \
-        .option("url", "jdbc:sqlserver:...") \
+        .option("url", jdbc_conn_string) \
         .option("dbtable", "dbo.Employees") \
         .load()
 

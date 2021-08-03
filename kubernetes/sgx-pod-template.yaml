@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: azure-sql
+      resources:
+        limits:
+          sgx.intel.com/epc: 5Mi
