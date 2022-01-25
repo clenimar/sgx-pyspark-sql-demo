@@ -11,9 +11,9 @@ spec:
       resources:
         limits:
           cpu: "8"
-          sgx.intel.com/enclave: 1
+          sgx.k8s.io/sgx: 1
           memory: "10Gi"
         requests:
           cpu: "4"
-          sgx.intel.com/enclave: 1
+          sgx.k8s.io/sgx: 1
           memory: "6Gi"
